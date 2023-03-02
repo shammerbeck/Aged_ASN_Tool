@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "pycharm aged asn"
+version = "0.1.0"
+description = ""
+authors = ["shammerbeck <sophia.hammerbeck@geappliances.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^1.5.3"
+openpyxl = "^3.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
