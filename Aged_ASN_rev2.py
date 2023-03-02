@@ -1,4 +1,14 @@
-# A: Importing required libraries
+# Filename: Aged_ASN_rev2
+# Author: Sophia Hammerbeck (Sophia.Hammerbeck@geappliances)
+# Credits: Pieced together from code by Zachary Ramirez
+#          (Zachary.Ramirez@geappliances.com)
+# Date: 3/2/2023
+#
+# Purpose: Evaluates Firm Order Reports to prioritize based on age of ASN
+#          and generates summary report.
+# Comments: See Weeks on Hand Tool for original code.
+
+
 import openpyxl as xl
 import pandas as pd
 from openpyxl.styles import PatternFill
@@ -7,22 +17,25 @@ import datetime as dt
 from openpyxl.styles import fills
 
 
-# B: Receiving user inputs
 def initialize():
+    """Gather Firm Order Report from user input."""
     fid = "1"
     while fid == "1":
         print("\n")
-        fid = str(input("Enter the file path for the Firm Order Report (Press 1 for help or 0 to exit): "))
+        fid = str(input("Enter the file path for the Firm Order Report "
+                        "(Press 1 for help or 0 to exit): "))
         if fid == "1":
-            print("\nTo find the file path:\n1) Open 'Files'\n2) Right Click on the Weeks on Hand Report\n3) Select 'Copy as path'\n4) Paste the path into the terminal when prompted")
+            print("\nTo find the file path:\n1) Open 'Files'\n2) Right Click on "
+                  "the Weeks on Hand Report\n3) Select 'Copy as path'\n4) Paste "
+                  "the path into the terminal when prompted")
         elif fid[0] == '"':
             fid = fid[1:-1]
     #fid = r"C:\git\mat\RandomAutomationTools\AP3_Materials\test dummy db6.xlsx"
     return (fid)
 
 
-# C: Validates user inputs
 def valid(fid):
+    """Validate file input and print error message if needed."""
     validate = 0
     if fid == "0":
         print("Closing the program.")
@@ -30,16 +43,21 @@ def valid(fid):
         print("Error 405: Invalid file path.")
     elif fid[-3:] == "xls":
         print(
-            "Error 603: This program does not support the old .xls file format. Please convert it to the more recent .xlsx file format.")
+            "Error 603: This program does not support the old .xls file format. "
+            "Please convert it to the more recent .xlsx file format.")
     elif fid[0:5] == "https":
-        print("Error 604: This program cannot access files stored online. Please download the file to your computer. ")
+        print("Error 604: This program cannot access files stored online. "
+              "Please download the file to your computer. ")
     else:
         validate = 1
     return (validate)
 
 
-# D: Retrieves a list of open POs.
 def in_scope(fid):
+    """Retrieve a list of open POs.
+
+    This function may be obsolete. It is a holdover from the Weeks on Hand Tool.
+    """
     print("Defining scope...", end='', flush=True)
     PO_matrix_1 = pd.read_excel(fid)
     if PO_matrix_1.columns[0].lower() != "po number":
@@ -53,27 +71,12 @@ def in_scope(fid):
     return (POs)
 
 
-# E: Retrieves headers.
 def get_headers(ws):
+    """Retrieve the relevant headers."""
     print("Retrieving headers...", end='', flush=True)
     header_cols = ['PO Number', 'Vendor Name', 'Due Date']
     counter = 0
-    # for row in range(1, ws.max_row + 1):
-    # row = row
-    #  for col in ws['A']:
-    #      number_col = ws['A']
-    #       print(number_col)
-    #   for col in ws['M']:
-    #       supplier_col = col
-    #   for col in ws['G']:
-    #       due_date_col = col
     for row in range(1, ws.max_row + 1):
-        #  for col in ws['A']:
-        #     number_col = col
-        #  for col in ws['M']:
-        #     supplier_col = col
-        #   for col in ws['G']:
-        # due_date_col = col
         for col in range(1, ws.max_column + 1):
             if "PO Number" == ws.cell(row, col).value:
                 number_col = col
@@ -86,21 +89,19 @@ def get_headers(ws):
                 counter += 1
         if counter == 3:
             break
-
     print("Done")
     return (row, number_col, supplier_col, due_date_col, header_cols)
 
 
-# F: Color coding.
-def evaluate(ws, POs, header_row, number_col, supplier_col, due_date_col, header_cols):
+def evaluate(ws, POs, header_row, number_col,
+             supplier_col, due_date_col, header_cols):
+    """Color code cells based on the days since the ASN due date."""
     print("Evaluating Firm Order Report...", end='', flush=True)
     for row in range(header_row + 1, ws.max_row + 1):
         if (ws.cell(row, 1) == None):
-            # I think this is saying if a PO is empty, its filled in with the above PO
             ws.cell(row, 1).value = ws.cell(row - 1, 1).value
-        # skipped if statement bc i dont think its relevant
+            # If a cell is empty, fill it with the value directly above.
         date = ws.cell(row, due_date_col).value
-        # print(f"Date: {date}")
         if date is not None:
             date = dt.datetime.strptime(str(date), '%Y-%m-%d %H:%M:%S').date()
             days_since = date - dt.date.today()
@@ -108,19 +109,23 @@ def evaluate(ws, POs, header_row, number_col, supplier_col, due_date_col, header
             for col, col_name in enumerate(header_cols):
                 col = col + 1  # Need col to be 1-indexed instead of 0-indexed
                 if days_since <= -30:
-                    # ws.cell(row,col).fill = PatternFill(start_color = '00FF0000', end_color = '00FF0000', fill_type = 'solid')
-                    ws.cell(row, col).fill = fills.PatternFill('solid', fgColor='FF0000')
+                    ws.cell(row, col).fill = fills.PatternFill('solid',
+                                                               fgColor='FF0000')
                 elif days_since >= 0:
-                    ws.cell(row, col).fill = PatternFill(start_color='00FF00', end_color='00FF00', fill_type='solid')
+                    ws.cell(row, col).fill = PatternFill(start_color='00FF00',
+                                                         end_color='00FF00',
+                                                         fill_type='solid')
                 else:
-                    ws.cell(row, col).fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                    ws.cell(row, col).fill = PatternFill(start_color='FFFF00',
+                                                         end_color='FFFF00',
+                                                         fill_type='solid')
         # POs.remove(ws.cell(row,1).value)
     print("Done")
     return ()
 
 
-# G: Making table
 def make_table(ws, header_row, name):
+    """Create & stylize table."""
     print("Formatting Results...", end='', flush=True)
     if ws.tables == {}:
         alphabet = " ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -129,10 +134,12 @@ def make_table(ws, header_row, name):
         if (ws.max_column + 1) < 26:
             end = f"{alphabet[(ws.max_column)]}{(ws.max_row)}"
         else:
-            end = f"{alphabet[(int((ws.max_column) / 26))]}{alphabet[((ws.max_column) % 26)]}{(ws.max_row)}"
+            end = f"{alphabet[(int((ws.max_column) / 26))]}" \
+                  f"{alphabet[((ws.max_column) % 26)]}{(ws.max_row)}"
         ran = start + end
         tab = Table(displayName=f"Table_{name}", ref=ran)
-        style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False, showLastColumn=False,
+        style = TableStyleInfo(name="TableStyleMedium9",
+                               showFirstColumn=False, showLastColumn=False,
                                showRowStripes=True, showColumnStripes=False)
         tab.tableStyleInfo = style
         return (tab)
@@ -140,16 +147,20 @@ def make_table(ws, header_row, name):
         return (0)
 
 
-# H: Collecting summary information
 def get_summary(ws, header_row, supplier_col, header_cols):
+    """For each supplier, collect a summary of how many Red/Yellow/Green cells
+       it has."""
     print("Retrieving Summary Information...", end='', flush=True)
     summary_info = {}
     for row in range(header_row + 1, ws.max_row + 1):
-        if ws.cell(row, supplier_col).value is not None and ws.cell(row, supplier_col).value != "0":
+        if ws.cell(row, supplier_col).value is not None \
+                and ws.cell(row, supplier_col).value != "0":
             if ws.cell(row, supplier_col).value not in summary_info.keys():
-                summary_info[ws.cell(row, supplier_col).value] = {"Red": 0, "Yellow": 0, "Green": 0}
-                # Generates nested dictionaries containing initialized information for each supplier
-
+                summary_info[ws.cell(row, supplier_col).value] = {"Red": 0,
+                                                                  "Yellow": 0,
+                                                                  "Green": 0}
+                # Generates nested dictionaries containing initialized
+                # information for each supplier
         if ws.cell(row, 1).fill.fgColor.rgb == "00FF0000":
             summary_info[ws.cell(row, supplier_col).value]["Red"] += 1
             # Updates the red dictionary for each supplier and each site
@@ -163,8 +174,8 @@ def get_summary(ws, header_row, supplier_col, header_cols):
     return (summary_info)
 
 
-# I: Creates summary table from get_summary
 def make_summary(wb, summary_info, fid):
+    """Create a table displaying the data collected in get_summary."""
     headers = ["Supplier", "Red Qty", "Yellow Qty", "Green Qty"]
     print("Generating Summary...", end='', flush=True)
 
@@ -201,8 +212,8 @@ def make_summary(wb, summary_info, fid):
     return ()
 
 
-# ***ACTUAL EXECUTION***
 def main():
+    """Execute the program and print errors if needed."""
     fid = initialize()
     cont = valid(fid)
     # Checks exit criterion
@@ -223,6 +234,13 @@ def main():
             summary_info = get_summary(ws, header_row, supplier_col, header_cols)
             make_summary(wb, summary_info, fid)
             print("Done")
+            print("Done\nIt is now safe to open the Firm Order Report.")
+            print("\n***************************************************************\n")
+            print("Table Key:")
+            print("Red Cell: Over a month overdue")
+            print("Yellow Cell: Less than a month overdue")
+            print("Green Cell: Not yet due")
+            print("\n***************************************************************")
         except xl.utils.exceptions.InvalidFileException:
             print("Error 403: This file is not present on the device.")
         except PermissionError:
