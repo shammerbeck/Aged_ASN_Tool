@@ -54,21 +54,28 @@ def valid(fid):
 
 
 def in_scope(fid):
-    """Retrieve a list of open POs.
+    """Retrieve a list of open POs."""
 
-    This function may be obsolete. It is a holdover from the Weeks on Hand Tool.
-    """
     print("Defining scope...", end='', flush=True)
     PO_matrix_1 = pd.read_excel(fid)
     if PO_matrix_1.columns[0].lower() != "po number":
         new_header = PO_matrix_1.iloc[0]
         PO_matrix_1 = PO_matrix_1[1:]
         PO_matrix_1.columns = new_header
-    listx = ['PARTIALLY RECEIVED', 'EXPECTED', 'CANCELLED']
+
+    listx = ['PARTIALLY RECEIVED', 'EXPECTED']
     PO_matrix_2 = PO_matrix_1[PO_matrix_1['ASN Status'].isin(listx)]
-    POs = PO_matrix_2.index.to_list()
+    wip_POs = PO_matrix_2.index.to_list()
+    #Collect WIP POs, excluding cancelled POs.
+
+    listy = ['FULLY RECEIVED']
+    PO_matrix_3 = PO_matrix_1[PO_matrix_1['ASN Status'].isin(listy)]
+    full_POs = PO_matrix_3.index.to_list()
+    #Collect fully received POs (Must be separate because ALL fully received POs
+    #get coded green.
+
     print("Done")
-    return (POs)
+    return (wip_POs, full_POs)
 
 
 def get_headers(ws):
@@ -93,7 +100,7 @@ def get_headers(ws):
     return (row, number_col, supplier_col, due_date_col, header_cols)
 
 
-def evaluate(ws, POs, header_row, number_col,
+def evaluate(ws, POs, full_POs, header_row, number_col,
              supplier_col, due_date_col, header_cols):
     """Color code cells based on the days since the ASN due date."""
     print("Evaluating Firm Order Report...", end='', flush=True)
@@ -103,29 +110,32 @@ def evaluate(ws, POs, header_row, number_col,
             # If a cell is empty, fill it with the value directly above.
         date = ws.cell(row, due_date_col).value
         PO_row = row - 2
-        if PO_row in POs and date is not None:
-            date = dt.datetime.strptime(str(date), '%Y-%m-%d %H:%M:%S').date()
-            days_since = date - dt.date.today()
-            days_since = int(days_since.days)
-            for col, col_name in enumerate(header_cols):
-                col = col + 1  # Need col to be 1-indexed instead of 0-indexed
-                if days_since <= -30:
-                    ws.cell(row, col).fill = fills.PatternFill('solid',
-                                                               fgColor='FF0000')
-                elif days_since >= 0:
+        if date is not None:
+            if PO_row in POs:
+                date = dt.datetime.strptime(str(date), '%Y-%m-%d %H:%M:%S').date()
+                days_since = date - dt.date.today()
+                days_since = int(days_since.days)
+                for col, col_name in enumerate(header_cols):
+                    col = col + 1  # Need col to be 1-indexed instead of 0-indexed
+                    if days_since <= -30:
+                        ws.cell(row, col).fill = fills.PatternFill('solid',
+                                                                   fgColor='FF0000')
+                    elif days_since >= 0:
+                        ws.cell(row, col).fill = PatternFill(start_color='00FF00',
+                                                             end_color='00FF00',
+                                                             fill_type='solid')
+                    else:
+                        ws.cell(row, col).fill = PatternFill(start_color='FFFF00',
+                                                             end_color='FFFF00',
+                                                             fill_type='solid')
+            elif PO_row in full_POs:
+                for col, col_name in enumerate(header_cols):
+                    col = col + 1
                     ws.cell(row, col).fill = PatternFill(start_color='00FF00',
                                                          end_color='00FF00',
                                                          fill_type='solid')
-                else:
-                    ws.cell(row, col).fill = PatternFill(start_color='FFFF00',
-                                                         end_color='FFFF00',
-                                                         fill_type='solid')
-     #   if ws.cell(row, 1).value not in POs:
-         #   for col, col_name in enumerate(header_cols):
-           #     col = col + 1
-          #      ws.cell(row, col).fill = PatternFill(start_color='00FF00',
-                                                  #  end_color='00FF00',
-                                                 #   fill_type='solid')
+                    #All full_POs must be green.
+
    # POs.remove(ws.cell(row,1).value)
     print("Done")
     return ()
@@ -228,7 +238,7 @@ def main():
         try:
             wb = xl.load_workbook(filename=fid)
             ws = wb.active
-            POs = in_scope(fid)
+            POs, full_POs = in_scope(fid)
             (header_row, number_col, supplier_col, due_date_col, header_cols) = get_headers(ws)
             tab = make_table(ws, header_row, 1)
             if tab != 0:
@@ -237,7 +247,7 @@ def main():
             wb.close
             wb = xl.load_workbook(filename=fid)
             ws = wb.active
-            evaluate(ws, POs, header_row, number_col, supplier_col, due_date_col, header_cols)
+            evaluate(ws, POs, full_POs, header_row, number_col, supplier_col, due_date_col, header_cols)
             summary_info = get_summary(ws, header_row, supplier_col, header_cols)
             make_summary(wb, summary_info, fid)
             print("Done")
@@ -246,7 +256,7 @@ def main():
             print("Table Key:")
             print("Red Cell: Over a month overdue")
             print("Yellow Cell: Less than a month overdue")
-            print("Green Cell: Not yet due")
+            print("Green Cell: Not yet due OR fully received")
             print("\n***************************************************************")
         except xl.utils.exceptions.InvalidFileException:
             print("Error 403: This file is not present on the device.")
