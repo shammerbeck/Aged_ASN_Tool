@@ -64,7 +64,7 @@ def in_scope(fid):
         new_header = PO_matrix_1.iloc[0]
         PO_matrix_1 = PO_matrix_1[1:]
         PO_matrix_1.columns = new_header
-    listx = ['PARTIALLY RECEIVED', 'EXPECTED']
+    listx = ['PARTIALLY RECEIVED', 'EXPECTED', 'CANCELLED']
     PO_matrix_2 = PO_matrix_1[PO_matrix_1['ASN Status'].isin(listx)]
     POs = PO_matrix_2.index.to_list()
     print("Done")
@@ -84,7 +84,7 @@ def get_headers(ws):
             elif "Vendor Name" == ws.cell(row, col).value:
                 supplier_col = col
                 counter += 1
-            elif "Due Date" == ws.cell(row, col).value:
+            elif "Estimated Receipt Date (ETA)" == ws.cell(row, col).value:
                 due_date_col = col
                 counter += 1
         if counter == 3:
@@ -102,7 +102,8 @@ def evaluate(ws, POs, header_row, number_col,
             ws.cell(row, 1).value = ws.cell(row - 1, 1).value
             # If a cell is empty, fill it with the value directly above.
         date = ws.cell(row, due_date_col).value
-        if date is not None:
+        PO_row = row - 2
+        if PO_row in POs and date is not None:
             date = dt.datetime.strptime(str(date), '%Y-%m-%d %H:%M:%S').date()
             days_since = date - dt.date.today()
             days_since = int(days_since.days)
@@ -119,7 +120,13 @@ def evaluate(ws, POs, header_row, number_col,
                     ws.cell(row, col).fill = PatternFill(start_color='FFFF00',
                                                          end_color='FFFF00',
                                                          fill_type='solid')
-        # POs.remove(ws.cell(row,1).value)
+     #   if ws.cell(row, 1).value not in POs:
+         #   for col, col_name in enumerate(header_cols):
+           #     col = col + 1
+          #      ws.cell(row, col).fill = PatternFill(start_color='00FF00',
+                                                  #  end_color='00FF00',
+                                                 #   fill_type='solid')
+   # POs.remove(ws.cell(row,1).value)
     print("Done")
     return ()
 
